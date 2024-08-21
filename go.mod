@@ -1,4 +1,4 @@
-module code.trout.software/godeps
+module github.com/TroutSoftware/godeps
 
 go 1.23.0
 

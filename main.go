@@ -1,13 +1,10 @@
 // godeps is a small tool to generate a list of dependencies for a set of Go packages.
 // The output format can directly be integrated in a Makefile rule.
+//
+// Usage:
+//
+//	godeps [-tags go build tags] [-pkgdir directory] [-include-tests] package package …
 package main
-
-// need package name to binary mapping
-//
-// All sources files must be in the same directory.
-// => update to directory or files in directory -> re-generate dependencies
-//
-// https://go.dev/ref/spec#Package_clause
 
 import (
 	"context"
@@ -59,6 +56,12 @@ func main() {
 
 	for _, p := range pkgs {
 		fmt.Printf(".INTERMEDIATE: %s\n", p.PkgPath)
+	}
+
+	fmt.Println()
+
+	for _, p := range pkgs {
+		fmt.Printf("%s: go.mod\n", p.PkgPath)
 	}
 
 	// import and reversed dependencies
