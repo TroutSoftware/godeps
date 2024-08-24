@@ -61,7 +61,8 @@ func main() {
 	fmt.Println()
 
 	for _, p := range pkgs {
-		fmt.Printf("%s: go.mod\n", p.PkgPath)
+		rp, _ := filepath.Rel(pkgDir, p.Module.GoMod)
+		fmt.Printf("%s: %s\n", p.PkgPath, rp)
 	}
 
 	// import and reversed dependencies
