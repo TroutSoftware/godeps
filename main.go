@@ -14,27 +14,33 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"golang.org/x/tools/go/packages"
 )
 
 func main() {
-	timeout := 10 * time.Second
 	buildFlags := []string{}
 	pkgDir, _ := os.Getwd()
 
-	flag.Var((*FDuration)(&timeout), "load-timeout", "Maximum time to wait before killing the tool")
 	flag.Var((*CSV)(&buildFlags), "tags", "Build tags to include")
 	flag.StringVar(&pkgDir, "pkgdir", "", "Load packages from dir instead of current directory")
 	flag.Bool("include-tests", false, "Include related test packages")
+	outspec := flag.String("o", "-", "Destination of the dependencies (stdout by default)")
 
 	flag.Parse()
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+	ctx := context.Background()
 
 	pkgDir, _ = filepath.Abs(pkgDir)
+
+	dst := os.Stdout
+	if *outspec != "-" {
+		var err error
+		dst, err = os.Create(*outspec)
+		if err != nil {
+			log.Fatalf("creating output %s: %s", *outspec, err)
+		}
+	}
 
 	cfg := packages.Config{
 		Context:    ctx,
@@ -50,19 +56,19 @@ func main() {
 
 	for _, p := range pkgs {
 		if p.Name != "main" {
-			log.Fatal("only run godeps on top-level (main) packages")
+			log.Fatalf("godeps only accepts main packages [ran in %s]", p)
 		}
 	}
 
 	for _, p := range pkgs {
-		fmt.Printf(".INTERMEDIATE: %s\n", p.PkgPath)
+		fmt.Fprintf(dst, ".INTERMEDIATE: %s\n", p.PkgPath)
 	}
 
-	fmt.Println()
+	fmt.Fprintln(dst)
 
 	for _, p := range pkgs {
 		rp, _ := filepath.Rel(pkgDir, p.Module.GoMod)
-		fmt.Printf("%s: %s\n", p.PkgPath, rp)
+		fmt.Fprintf(dst, "%s: %s\n", p.PkgPath, rp)
 	}
 
 	// import and reversed dependencies
@@ -71,11 +77,11 @@ func main() {
 	//  import name -> packages importing it
 	rdeps := make(map[string][]string)
 
-	fmt.Println() // empty line
+	fmt.Fprintln(dst) // empty line
 
 	for _, p := range pkgs {
 		rpath(pkgDir, p)
-		fmt.Printf("%s: %s\n", p.PkgPath, strings.Join(p.GoFiles, " "))
+		fmt.Fprintf(dst, "%s: %s\n", p.PkgPath, strings.Join(p.GoFiles, " "))
 		for _, dep := range p.Imports {
 			// only include dependencies in current modules, go.mod does the rest
 			if dep.Module == nil || dep.Module.Path != p.Module.Path {
@@ -90,7 +96,7 @@ func main() {
 	}
 
 	for n, p := range rdeps {
-		fmt.Printf("%s: %s\n", strings.Join(p, " "), strings.Join(ideps[n], " "))
+		fmt.Fprintf(dst, "%s: %s\n", strings.Join(p, " "), strings.Join(ideps[n], " "))
 	}
 }
 
