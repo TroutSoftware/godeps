@@ -3,7 +3,7 @@
 //
 // Usage:
 //
-//	godeps [-tags go build tags] [-pkgdir directory] [-include-tests] package package …
+//	godeps [-flags go build flags] [-pkgdir directory] [-include-tests] package package …
 package main
 
 import (
@@ -22,7 +22,7 @@ func main() {
 	buildFlags := []string{}
 	pkgDir, _ := os.Getwd()
 
-	flag.Var((*CSV)(&buildFlags), "tags", "Build tags to include")
+	flag.Var((*CSV)(&buildFlags), "flags", "Build flags to include")
 	flag.StringVar(&pkgDir, "pkgdir", "", "Load packages from dir instead of current directory")
 	flag.Bool("include-tests", false, "Include related test packages")
 	outspec := flag.String("o", "-", "Destination of the dependencies (stdout by default)")
