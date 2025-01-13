@@ -56,7 +56,7 @@ func main() {
 
 	for _, p := range pkgs {
 		if p.Name != "main" {
-			log.Fatalf("godeps only accepts main packages [ran in %s]", p)
+			log.Fatalf("godeps only accepts main packages [ran in %s]: got %s", p, p.Name)
 		}
 	}
 
