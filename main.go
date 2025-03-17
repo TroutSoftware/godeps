@@ -2,8 +2,6 @@
 // The output format can directly be integrated in a Makefile rule.
 //
 // Usage:
-//
-//	godeps [-flags go build flags] [-pkgdir directory] [-include-tests] package package …
 package main
 
 import (
@@ -18,11 +16,31 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+var usage = `
+Usage:
+	godeps [-flags FLAGS] [-pkgdir DIR] [-include-tests] PACKAGE [PACKAGE …]
+
+Options:
+	-flags            Build flags to consider (as given to "go build" command)
+	-pkgdir           Root of the package (if multi-module build)
+	-include-tests    Also generate dependencies for test files (usually not required)
+
+The most common error for this package is the "godeps only accepts main package".
+If you have given an actual main package name, this is usually because the package cannot
+be found. Make sure that pkgdir is set to the right directory, this can be checked by:
+
+	go list -f '{{.Name}}' PACKAGE
+`
+
 func main() {
 	buildFlags := []string{}
 	pkgDir, _ := os.Getwd()
 
-	flag.Var((*CSV)(&buildFlags), "flags", "Build flags to include")
+	flag.Func("flags", "build flags to include", func(s string) error {
+		buildFlags = strings.Split(s, ",")
+		return nil
+	})
+
 	flag.StringVar(&pkgDir, "pkgdir", "", "Load packages from dir instead of current directory")
 	flag.Bool("include-tests", false, "Include related test packages")
 	outspec := flag.String("o", "-", "Destination of the dependencies (stdout by default)")
@@ -56,19 +74,12 @@ func main() {
 
 	for _, p := range pkgs {
 		if p.Name != "main" {
-			log.Fatalf("godeps only accepts main packages [ran in %s]: got %s", p, p.Name)
+			log.Fatalf("godeps only accepts main packages [ran in %s]: got %s", pkgDir, p.Name)
 		}
 	}
 
 	for _, p := range pkgs {
-		fmt.Fprintf(dst, ".INTERMEDIATE: %s\n", p.PkgPath)
-	}
-
-	fmt.Fprintln(dst)
-
-	for _, p := range pkgs {
-		rp, _ := filepath.Rel(pkgDir, p.Module.GoMod)
-		fmt.Fprintf(dst, "%s: %s\n", p.PkgPath, rp)
+		fmt.Fprint(dst, p.Module.GoMod, " ")
 	}
 
 	// import and reversed dependencies
@@ -77,32 +88,20 @@ func main() {
 	//  import name -> packages importing it
 	rdeps := make(map[string][]string)
 
-	fmt.Fprintln(dst) // empty line
-
 	for _, p := range pkgs {
-		rpath(pkgDir, p)
-		fmt.Fprintf(dst, "%s: %s\n", p.PkgPath, strings.Join(p.GoFiles, " "))
+		fmt.Fprintf(dst, "%s ", strings.Join(p.GoFiles, " "))
 		for _, dep := range p.Imports {
-			// only include dependencies in current modules, go.mod does the rest
 			if dep.Module == nil || dep.Module.Path != p.Module.Path {
 				continue
 			}
 			if _, known := ideps[dep.PkgPath]; !known {
-				rpath(pkgDir, dep)
 				ideps[dep.PkgPath] = dep.GoFiles
 			}
 			rdeps[dep.PkgPath] = append(rdeps[dep.PkgPath], p.PkgPath)
 		}
 	}
 
-	for n, p := range rdeps {
-		fmt.Fprintf(dst, "%s: %s\n", strings.Join(p, " "), strings.Join(ideps[n], " "))
-	}
-}
-
-// rewrite files path so they are relative to base
-func rpath(base string, p *packages.Package) {
-	for i, f := range p.GoFiles {
-		p.GoFiles[i], _ = filepath.Rel(base, f)
+	for n := range rdeps {
+		fmt.Fprintf(dst, "%s ", strings.Join(ideps[n], " "))
 	}
 }
