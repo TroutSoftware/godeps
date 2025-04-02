@@ -77,31 +77,23 @@ func main() {
 			log.Fatalf("godeps only accepts main packages [ran in %s]: got %s", pkgDir, p.Name)
 		}
 	}
-
 	for _, p := range pkgs {
 		fmt.Fprint(dst, p.Module.GoMod, " ")
 	}
 
-	// import and reversed dependencies
-	//  import name -> files in package
-	ideps := make(map[string][]string)
-	//  import name -> packages importing it
-	rdeps := make(map[string][]string)
+	cmod := pkgs[0].Module.Path
 
-	for _, p := range pkgs {
-		fmt.Fprintf(dst, "%s ", strings.Join(p.GoFiles, " "))
-		for _, dep := range p.Imports {
-			if dep.Module == nil || dep.Module.Path != p.Module.Path {
-				continue
-			}
-			if _, known := ideps[dep.PkgPath]; !known {
-				ideps[dep.PkgPath] = dep.GoFiles
-			}
-			rdeps[dep.PkgPath] = append(rdeps[dep.PkgPath], p.PkgPath)
+	packages.Visit(pkgs, func(p *packages.Package) bool {
+		if p.Module == nil || p.Module.Path != cmod {
+			return false
 		}
-	}
 
-	for n := range rdeps {
-		fmt.Fprintf(dst, "%s ", strings.Join(ideps[n], " "))
-	}
+		files := [][]string{p.GoFiles, p.EmbedFiles, p.OtherFiles}
+		for _, fs := range files {
+			if len(fs) > 0 {
+				fmt.Fprintf(dst, "%s ", strings.Join(fs, " "))
+			}
+		}
+		return true
+	}, nil)
 }
