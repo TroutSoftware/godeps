@@ -63,7 +63,7 @@ func main() {
 	cfg := packages.Config{
 		Context:    ctx,
 		Dir:        pkgDir,
-		Mode:       packages.NeedName | packages.NeedFiles | packages.NeedImports | packages.NeedDeps | packages.NeedModule,
+		Mode:       packages.NeedName | packages.NeedFiles | packages.NeedImports | packages.NeedDeps | packages.NeedModule | packages.NeedEmbedFiles,
 		BuildFlags: buildFlags,
 	}
 
